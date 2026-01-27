@@ -1,4 +1,5 @@
 use worker::*;
+use sqlx_d1::D1Connection;
 
 #[event(fetch)]
 pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
@@ -14,6 +15,11 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let key = format!("videos/{}.mp4", id);
 
             bucket.put(key, bytes).execute().await?;
+
+
+
+            let d1 = ctx.env.d1("DB")?;
+            let d1_conn = D1Connection::new(d1);
 
             Response::ok(format!("Uploaded video: {}", id))
         })

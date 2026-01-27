@@ -9,8 +9,8 @@ bucket_name = "copy-right"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "video-db"
-database_id = "REPLACE_WITH_YOUR_DB_ID" # Run 'wrangler d1 info video-db' to get this
+database_name = "copyright"
+database_id = "c296de5f-5e74-44b1-bbbf-c48bbea1f2cd" # Run 'wrangler d1 info video-db' to get this
 
 [[queues.producers]]
 binding = "VIDEO_QUEUE"
