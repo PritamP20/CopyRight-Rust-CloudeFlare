@@ -1,6 +1,10 @@
 name = "video-upload-api"
-main = "src/lib.rs"
+main = "build/worker/shim.mjs"
 compatibility_date = "2024-01-27"
+
+[build]
+command = "cargo install -q worker-build && worker-build --release"
+
 
 # Bindings allow you to access resources directly
 [[r2_buckets]]
@@ -11,7 +15,3 @@ bucket_name = "copy-right"
 binding = "DB"
 database_name = "copyright"
 database_id = "c296de5f-5e74-44b1-bbbf-c48bbea1f2cd" # Run 'wrangler d1 info video-db' to get this
-
-[[queues.producers]]
-binding = "VIDEO_QUEUE"
-queue = "video-processing"
