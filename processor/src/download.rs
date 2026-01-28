@@ -1,26 +1,49 @@
-use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_s3::config::Region;
-use aws_sdk_s3::{endpoint, Client, Config};
+use aws_sdk_s3::config::{BehaviorVersion, Credentials, Region};
+use aws_sdk_s3::{Client, Config};
 use std::env;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
+use std::path::PathBuf;
+use tokio::io::AsyncWriteExt;
 
-#[tokio::main]
-pub async fn download_video(
-    video_id: &str,
-    r2_key: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // y do we do Box
+use anyhow::Result;
+
+pub async fn download_video(video_id: &str, r2_key: &str) -> Result<PathBuf> {
+    println!("Starting download for video_id: {}", video_id);
 
     dotenv::dotenv().ok();
     let access_key = env::var("R2_ACCESS_KEY_ID")?;
     let secret_key = env::var("R2_SECRET_ACCESS_KEY")?;
     let bucket = env::var("R2_BUCKET_NAME")?;
-    let endpoint = env::var("R2_ENDPOINT")?;
-    println!(
-        "Simulating download for video_id: {}, key: {}",
-        video_id, r2_key
-    );
-    Ok(())
+    let account_id = env::var("R2_ACCOUNT_ID")?;
+
+    let endpoint_url = format!("https://{}.r2.cloudflarestorage.com", account_id);
+    let creds = Credentials::new(access_key, secret_key, None, None, "r2");
+    let config = Config::builder()
+        .behavior_version(BehaviorVersion::latest())
+        .region(Region::new("auto"))
+        .endpoint_url(endpoint_url)
+        .credentials_provider(creds)
+        .build();
+
+    let client = Client::from_conf(config);
+
+    let mut response = client
+        .get_object()
+        .bucket(&bucket)
+        .key(r2_key)
+        .send()
+        .await?;
+
+    let temp_dir = std::env::temp_dir();
+    let file_path = temp_dir.join(format!("{}.mp4", video_id));
+
+    let mut file = tokio::fs::File::create(&file_path).await?;
+
+    while let Some(bytes) = response.body.try_next().await? {
+        file.write_all(&bytes).await?;
+    }
+
+    file.flush().await?;
+
+    println!("Downloaded video to: {:?}", file_path);
+    Ok(file_path)
 }

@@ -11,22 +11,17 @@ tower-http = { version = "0.5", features = ["cors", "trace"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
-# HTTP client for downloading from signed URLs
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 
-# AWS SDK for S3 (use this if you ever talk to S3; for R2 you'll use signed URLs)
-aws-sdk-s3 = "0.27"
+aws-sdk-s3 = "1"
 aws-config = "1"
 
-# Image processing and ffmpeg bindings
-image = "0.24"
+image = "0.23.14"
+img_hash = "3.2"
 
-
-# Observability / tracing for tower-http::trace
 tracing = "0.1"
 tracing-subscriber = "0.3"
 
-# small utilities
 tempfile = "3.6"
 anyhow = "1.0"
 dotenv = "0.15.0"
