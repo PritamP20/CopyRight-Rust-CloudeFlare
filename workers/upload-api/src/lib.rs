@@ -7,11 +7,9 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
     router
         .post_async("/upload", |mut req, ctx| async move {
-            // 1. Upload to R2
             let bucket = ctx.env.bucket("VIDEO_BUCKET")?;
             let bytes = req.bytes().await?;
             
-            // Validation (Basic)
             if bytes.is_empty() {
                 return Response::error("File is empty", 400);
             }
