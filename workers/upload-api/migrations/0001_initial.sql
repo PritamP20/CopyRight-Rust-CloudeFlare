@@ -8,8 +8,8 @@ CREATE TABLE videos (
     id TEXT PRIMARY KEY,
     r2_key TEXT NOT NULL,
     user_id TEXT NOT NULL,
-    status TEXT NOT NULL, -- 'processing', 'active', 'duplicate', 'failed'
-    original_video_id TEXT, -- If duplicate, points to the original
+    status TEXT NOT NULL,
+    original_video_id TEXT, 
     created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
     uploaded_at TEXT
 );
@@ -17,14 +17,14 @@ CREATE TABLE videos (
 CREATE TABLE video_hashes (
     video_id TEXT NOT NULL,
     frame_index INTEGER NOT NULL,
-    hash_value TEXT NOT NULL, -- Hex string of the hash
+    hash_value TEXT NOT NULL, 
     FOREIGN KEY(video_id) REFERENCES videos(id)
 );
 
 CREATE TABLE video_lsh_bands (
     video_id TEXT NOT NULL,
-    band_index INTEGER NOT NULL, -- 0 to 3
-    band_value INTEGER NOT NULL, -- u16 value
+    band_index INTEGER NOT NULL,
+    band_value INTEGER NOT NULL, 
     FOREIGN KEY(video_id) REFERENCES videos(id)
 );
 

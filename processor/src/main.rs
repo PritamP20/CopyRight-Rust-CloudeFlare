@@ -12,6 +12,7 @@ use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber;
 
+mod audio;
 mod download;
 mod fingerprint;
 
@@ -23,6 +24,7 @@ struct ProcessRequest {
 
 #[tokio::main]
 async fn main() {
+    dotenv::dotenv().ok(); // Load .env file
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();
@@ -51,9 +53,24 @@ async fn process_video(Json(payload): Json<ProcessRequest>) -> impl IntoResponse
             tracing::info!("Video downloaded to: {:?}", path);
 
             // Process fingerprints
-            match fingerprint::process_video(&path).await {
+            let video_hashes_result = fingerprint::process_video(&path).await;
+
+            // Process Audio
+            let audio_hashes = match audio::process_audio(&path).await {
+                Ok(h) => h,
+                Err(e) => {
+                    tracing::warn!("Audio processing failed: {}", e);
+                    Vec::new()
+                }
+            };
+
+            match video_hashes_result {
                 Ok(hashes) => {
-                    tracing::info!("Generated {} fingerprints", hashes.len());
+                    tracing::info!(
+                        "Generated {} video hashes, {} audio hashes",
+                        hashes.len(),
+                        audio_hashes.len()
+                    );
 
                     // CALL WORKER API TO CHECK DUPLICATES & STORE
                     let client = Client::new();
@@ -63,7 +80,8 @@ async fn process_video(Json(payload): Json<ProcessRequest>) -> impl IntoResponse
 
                     let body = json!({
                         "video_id": payload.video_id,
-                        "hashes": hashes
+                        "hashes": hashes,
+                        "audio_hashes": audio_hashes
                     });
 
                     match client.post(&target_url).json(&body).send().await {
