@@ -15,3 +15,7 @@ bucket_name = "copy-right"
 binding = "DB"
 database_name = "copyright"
 database_id = "c296de5f-5e74-44b1-bbbf-c48bbea1f2cd" # Run 'wrangler d1 info video-db' to get this
+
+
+# Deployed video-upload-api triggers (4.91 sec)
+# https://video-upload-api.pripritam7.workers.dev
