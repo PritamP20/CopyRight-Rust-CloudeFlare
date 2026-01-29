@@ -1,12 +1,19 @@
-use axum::{extract::Json, http::StatusCode, response::IntoResponse, routing::post, Router};
-
-mod download;
-mod fingerprint;
-
-use serde::Deserialize;
+use axum::{
+    extract::{Json, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::post,
+    Router,
+};
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber;
+
+mod download;
+mod fingerprint;
 
 #[derive(Debug, Deserialize)]
 struct ProcessRequest {
@@ -19,6 +26,11 @@ async fn main() {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();
+
+    // Check if API URL is set, for info logging only (we read it in handler)
+    let api_url =
+        std::env::var("UPLOAD_API_URL").unwrap_or_else(|_| "http://127.0.0.1:8787".to_string());
+    tracing::info!("Configured to callback Upload API at: {}", api_url);
 
     let app = Router::new()
         .route("/process", post(process_video))
@@ -42,16 +54,52 @@ async fn process_video(Json(payload): Json<ProcessRequest>) -> impl IntoResponse
             match fingerprint::process_video(&path).await {
                 Ok(hashes) => {
                     tracing::info!("Generated {} fingerprints", hashes.len());
-                    // In a real app, we'd store these hashes in a database
-                    tracing::debug!("Hashes: {:?}", hashes);
-                    (
-                        StatusCode::OK,
-                        format!(
-                            "Processed video {} with {} frames",
-                            payload.video_id,
-                            hashes.len()
-                        ),
-                    )
+
+                    // CALL WORKER API TO CHECK DUPLICATES & STORE
+                    let client = Client::new();
+                    let api_url = std::env::var("UPLOAD_API_URL")
+                        .unwrap_or_else(|_| "http://127.0.0.1:8787".to_string());
+                    let target_url = format!("{}/internal/complete", api_url);
+
+                    let body = json!({
+                        "video_id": payload.video_id,
+                        "hashes": hashes
+                    });
+
+                    match client.post(&target_url).json(&body).send().await {
+                        Ok(res) => {
+                            if res.status() == StatusCode::OK {
+                                tracing::info!("Video indexed successfully via API");
+                                (
+                                    StatusCode::OK,
+                                    format!("Processed and indexed video {}", payload.video_id),
+                                )
+                            } else if res.status() == StatusCode::CONFLICT {
+                                tracing::warn!("Duplicate detected by API!");
+                                (
+                                    StatusCode::CONFLICT,
+                                    format!(
+                                        "Duplicate content detected for video {}",
+                                        payload.video_id
+                                    ),
+                                )
+                            } else {
+                                let err_text = res.text().await.unwrap_or_default();
+                                tracing::error!("API returned error: {}", err_text);
+                                (
+                                    StatusCode::INTERNAL_SERVER_ERROR,
+                                    format!("Upload API Error: {}", err_text),
+                                )
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to call Upload API: {}", e);
+                            (
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                                format!("Failed to contact Upload API: {}", e),
+                            )
+                        }
+                    }
                 }
                 Err(e) => {
                     tracing::error!("Failed to generate fingerprints: {:?}", e);

@@ -5,7 +5,6 @@ use tokio::process::Command;
 pub async fn extract_frames(video_path: &Path, temp_dir: &Path) -> Result<Vec<PathBuf>> {
     let output_pattern = temp_dir.join("frame_%04d.jpg");
 
-    // fps=1 means extract 1 frame per second
     let status = Command::new("ffmpeg")
         .arg("-i")
         .arg(video_path)
@@ -30,7 +29,6 @@ pub async fn extract_frames(video_path: &Path, temp_dir: &Path) -> Result<Vec<Pa
         }
     }
 
-    // Sort to ensure order
     frames.sort();
 
     Ok(frames)
